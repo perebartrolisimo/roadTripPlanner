@@ -1,3 +1,21 @@
+// ── GitHub Settings ──────────────────────────────────────────────────
+const SETTINGS_KEY = 'roadTripPlanner_settings';
+const GITHUB_SAVE_DEBOUNCE_MS = 1000;
+// Approximate factor to convert straight-line distance to road distance
+const ROAD_DISTANCE_FACTOR = 1.3;
+
+function loadSettings() {
+    try {
+        return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
+    } catch (_) {
+        return {};
+    }
+}
+
+function saveSettings(settings) {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
 // ── Storage ──────────────────────────────────────────────────────────
 const STORAGE_KEY = 'roadTripPlanner_stops';
 
@@ -18,21 +36,92 @@ function loadStopsFromFile() {
         });
 }
 
-function exportStops() {
-    const json = JSON.stringify(stops, null, 4);
-    const blob = new Blob([json + '\n'], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'stops.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+function saveStops(list, skipGitHub) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    if (!skipGitHub) persistToGitHub();
 }
 
-function saveStops(list) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+// ── GitHub Persistence ───────────────────────────────────────────────
+let githubSaveTimeout = null;
+
+function persistToGitHub() {
+    if (githubSaveTimeout) clearTimeout(githubSaveTimeout);
+    githubSaveTimeout = setTimeout(doGitHubSave, GITHUB_SAVE_DEBOUNCE_MS);
+}
+
+function utf8ToBase64(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function (_, p1) {
+        return String.fromCharCode(parseInt(p1, 16));
+    }));
+}
+
+async function doGitHubSave() {
+    const settings = loadSettings();
+    if (!settings.token || !settings.owner || !settings.repo) {
+        updateSyncStatus('no-config');
+        return;
+    }
+
+    updateSyncStatus('saving');
+
+    try {
+        const branch = settings.branch || 'main';
+        const apiBase = 'https://api.github.com/repos/'
+            + encodeURIComponent(settings.owner) + '/'
+            + encodeURIComponent(settings.repo);
+
+        const getRes = await fetch(
+            apiBase + '/contents/stops.json?ref=' + encodeURIComponent(branch),
+            { headers: { 'Authorization': 'token ' + settings.token } }
+        );
+
+        let sha = null;
+        if (getRes.ok) {
+            const fileData = await getRes.json();
+            sha = fileData.sha;
+        }
+
+        const jsonContent = JSON.stringify(stops, null, 4) + '\n';
+        const content = utf8ToBase64(jsonContent);
+        const body = {
+            message: 'Update stops data',
+            content: content,
+            branch: branch
+        };
+        if (sha) body.sha = sha;
+
+        const putRes = await fetch(apiBase + '/contents/stops.json', {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'token ' + settings.token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (putRes.ok) {
+            updateSyncStatus('saved');
+        } else {
+            updateSyncStatus('error');
+        }
+    } catch (_) {
+        updateSyncStatus('error');
+    }
+}
+
+function updateSyncStatus(status) {
+    const el = document.getElementById('sync-status');
+    if (!el) return;
+
+    const labels = {
+        'no-config': '⚙️ Configura GitHub',
+        'saving': '🔄 Desant…',
+        'saved': '✅ Desat a GitHub',
+        'error': '❌ Error al desar'
+    };
+
+    el.textContent = labels[status] || '';
+    el.className = 'sync-status ' + status;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -47,6 +136,17 @@ function extractCoordsFromUrl(url) {
     const match = url.match(/@(-?[\d.]+),(-?[\d.]+)/);
     if (match) return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
     return null;
+}
+
+function extractWaypointCoords(url) {
+    if (!url) return [];
+    const coords = [];
+    const regex = /!1d(-?[\d.]+)!2d(-?[\d.]+)/g;
+    let match;
+    while ((match = regex.exec(url)) !== null) {
+        coords.push({ lat: parseFloat(match[2]), lng: parseFloat(match[1]) });
+    }
+    return coords;
 }
 
 function extractPlacesFromUrl(url) {
@@ -64,34 +164,53 @@ function extractPlacesFromUrl(url) {
     }
 }
 
-function buildEmbedUrl(routeUrl) {
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+        + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+        * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+}
+
+function deriveStopInfo(routeUrl) {
     const places = extractPlacesFromUrl(routeUrl);
-    if (places.length >= 2) {
-        const origin = encodeURIComponent(places[0]);
-        const destination = encodeURIComponent(places[places.length - 1]);
-        return 'https://www.google.com/maps/embed/v1/directions?key=&origin='
-            + origin + '&destination=' + destination + '&mode=driving';
+    const waypoints = extractWaypointCoords(routeUrl);
+
+    const origin = places.length > 0 ? places[0] : '';
+    const destination = places.length > 1 ? places[places.length - 1] : '';
+
+    let distance = '';
+    if (waypoints.length >= 2) {
+        const first = waypoints[0];
+        const last = waypoints[waypoints.length - 1];
+        const km = haversineDistance(first.lat, first.lng, last.lat, last.lng);
+        distance = '~' + (Math.round(km * ROAD_DISTANCE_FACTOR / 10) * 10) + ' km';
     }
-    const coords = extractCoordsFromUrl(routeUrl);
-    if (coords) {
-        return 'https://www.google.com/maps/embed/v1/view?key=&center='
-            + coords.lat + ',' + coords.lng + '&zoom=7';
-    }
-    return null;
+
+    return { origin: origin, destination: destination, distance: distance };
 }
 
 // ── State ────────────────────────────────────────────────────────────
 let stops = [];
 let editingId = null;
+const leafletMaps = {};
 
 // ── CRUD ─────────────────────────────────────────────────────────────
 function deleteStop(id) {
     stops = stops.filter(s => s.id !== id);
+    if (leafletMaps[id]) { leafletMaps[id].remove(); delete leafletMaps[id]; }
     saveStops(stops);
     renderStops();
 }
 
 function addStop(stop) {
+    const derived = deriveStopInfo(stop.routeUrl);
+    stop.origin = derived.origin;
+    stop.destination = derived.destination;
+    stop.distance = derived.distance;
     stops.push(stop);
     saveStops(stops);
     renderStops();
@@ -100,7 +219,14 @@ function addStop(stop) {
 function updateStop(id, data) {
     const idx = stops.findIndex(s => s.id === id);
     if (idx === -1) return;
+    if (data.routeUrl) {
+        const derived = deriveStopInfo(data.routeUrl);
+        data.origin = derived.origin;
+        data.destination = derived.destination;
+        data.distance = derived.distance;
+    }
     stops[idx] = { ...stops[idx], ...data };
+    if (leafletMaps[id]) { leafletMaps[id].remove(); delete leafletMaps[id]; }
     saveStops(stops);
     editingId = null;
     renderStops();
@@ -153,18 +279,6 @@ function renderStops() {
                 + '<label>Data</label>'
                 + '<input type="text" class="edit-date" value="' + escapeHtml(stop.date) + '">'
                 + '</div>'
-                + '<div class="form-group">'
-                + '<label>Distància</label>'
-                + '<input type="text" class="edit-distance" value="' + escapeHtml(stop.distance) + '">'
-                + '</div>'
-                + '<div class="form-group">'
-                + '<label>Origen</label>'
-                + '<input type="text" class="edit-origin" value="' + escapeHtml(stop.origin) + '">'
-                + '</div>'
-                + '<div class="form-group">'
-                + '<label>Destinació</label>'
-                + '<input type="text" class="edit-destination" value="' + escapeHtml(stop.destination) + '">'
-                + '</div>'
                 + '<div class="form-group full-width">'
                 + '<label>URL de la ruta</label>'
                 + '<input type="url" class="edit-routeUrl" value="' + escapeHtml(stop.routeUrl) + '">'
@@ -216,7 +330,8 @@ function renderStops() {
             + '<button type="button" class="route-preview-toggle">'
             + '<span class="toggle-arrow">▼</span> Previsualització de la ruta'
             + '</button>'
-            + '<div class="route-preview-frame" data-route-url="'
+            + '<div class="route-preview-frame" data-stop-id="'
+            + escapeHtml(stop.id) + '" data-route-url="'
             + escapeHtml(stop.routeUrl) + '"></div>'
             + '</div>'
             + '</div>';
@@ -264,9 +379,6 @@ function bindCardEvents() {
             const id = card.dataset.id;
             updateStop(id, {
                 date: card.querySelector('.edit-date').value.trim(),
-                distance: card.querySelector('.edit-distance').value.trim(),
-                origin: card.querySelector('.edit-origin').value.trim(),
-                destination: card.querySelector('.edit-destination').value.trim(),
                 routeUrl: card.querySelector('.edit-routeUrl').value.trim(),
                 hotelName: card.querySelector('.edit-hotelName').value.trim(),
                 hotelUrl: card.querySelector('.edit-hotelUrl').value.trim() || '#'
@@ -286,19 +398,36 @@ function bindCardEvents() {
             btn.classList.toggle('open');
             const frame = btn.nextElementSibling;
             const isOpen = frame.classList.toggle('open');
+            const stopId = frame.dataset.stopId;
+
             if (isOpen && !frame.dataset.loaded) {
                 frame.dataset.loaded = 'true';
                 const routeUrl = frame.dataset.routeUrl;
-                const places = extractPlacesFromUrl(routeUrl);
-                if (places.length >= 2) {
-                    const origin = encodeURIComponent(places[0]);
-                    const dest = encodeURIComponent(places[places.length - 1]);
-                    const src = 'https://www.google.com/maps?q='
-                        + origin + '+to+' + dest
-                        + '&output=embed';
-                    frame.innerHTML = '<iframe src="' + escapeHtml(src)
-                        + '" allowfullscreen loading="lazy"'
-                        + ' referrerpolicy="no-referrer-when-downgrade"></iframe>';
+                const waypoints = extractWaypointCoords(routeUrl);
+
+                if (waypoints.length >= 2) {
+                    const mapDiv = document.createElement('div');
+                    mapDiv.id = 'map-' + stopId;
+                    mapDiv.style.width = '100%';
+                    mapDiv.style.height = '100%';
+                    frame.appendChild(mapDiv);
+
+                    const map = L.map(mapDiv.id);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    }).addTo(map);
+
+                    waypoints.forEach(function (w) {
+                        L.marker([w.lat, w.lng]).addTo(map);
+                    });
+
+                    const line = L.polyline(
+                        waypoints.map(function (w) { return [w.lat, w.lng]; }),
+                        { color: '#5b5ea6', weight: 3 }
+                    ).addTo(map);
+
+                    map.fitBounds(line.getBounds().pad(0.15));
+                    leafletMaps[stopId] = map;
                 } else {
                     frame.innerHTML = '<p style="padding:1rem;text-align:center;'
                         + 'color:#999;font-size:0.85rem;">'
@@ -322,14 +451,11 @@ document.getElementById('add-stop-form').addEventListener('submit', function (e)
     e.preventDefault();
 
     const date = document.getElementById('f-date').value.trim();
-    const origin = document.getElementById('f-origin').value.trim();
-    const destination = document.getElementById('f-destination').value.trim();
     const routeUrl = document.getElementById('f-route-url').value.trim();
-    const distance = document.getElementById('f-distance').value.trim();
     const hotelName = document.getElementById('f-hotel-name').value.trim();
     const hotelUrl = document.getElementById('f-hotel-url').value.trim();
 
-    if (!date || !origin || !destination || !routeUrl || !distance || !hotelName) {
+    if (!date || !routeUrl || !hotelName) {
         alert('Si us plau, omple tots els camps obligatoris.');
         return;
     }
@@ -337,10 +463,7 @@ document.getElementById('add-stop-form').addEventListener('submit', function (e)
     addStop({
         id: 'stop-' + Date.now(),
         date: date,
-        origin: origin,
-        destination: destination,
         routeUrl: routeUrl,
-        distance: distance,
         hotelName: hotelName,
         hotelUrl: hotelUrl || '#'
     });
@@ -348,8 +471,37 @@ document.getElementById('add-stop-form').addEventListener('submit', function (e)
     this.reset();
 });
 
+// ── Settings ─────────────────────────────────────────────────────────
+document.getElementById('settings-toggle').addEventListener('click', function () {
+    const body = document.getElementById('settings-body');
+    const icon = document.getElementById('settings-toggle-icon');
+    body.classList.toggle('open');
+    icon.classList.toggle('open');
+});
+
+document.getElementById('save-settings-btn').addEventListener('click', function () {
+    const settings = {
+        owner: document.getElementById('s-owner').value.trim(),
+        repo: document.getElementById('s-repo').value.trim(),
+        branch: document.getElementById('s-branch').value.trim() || 'main',
+        token: document.getElementById('s-token').value.trim()
+    };
+    saveSettings(settings);
+    persistToGitHub();
+});
+
+function populateSettings() {
+    const settings = loadSettings();
+    document.getElementById('s-owner').value = settings.owner || '';
+    document.getElementById('s-repo').value = settings.repo || '';
+    document.getElementById('s-branch').value = settings.branch || '';
+    document.getElementById('s-token').value = settings.token || '';
+}
+
 // ── Init ─────────────────────────────────────────────────────────────
 function initApp() {
+    populateSettings();
+
     const cached = loadStopsFromStorage();
     if (cached) {
         stops = cached;
@@ -358,7 +510,7 @@ function initApp() {
     loadStopsFromFile().then(function (fileStops) {
         if (!cached) {
             stops = fileStops;
-            saveStops(stops);
+            saveStops(stops, true);
             renderStops();
         }
     }).catch(function () {
@@ -366,8 +518,11 @@ function initApp() {
             renderStops();
         }
     });
-}
 
-document.getElementById('export-btn').addEventListener('click', exportStops);
+    const settings = loadSettings();
+    if (!settings.token || !settings.owner || !settings.repo) {
+        updateSyncStatus('no-config');
+    }
+}
 
 initApp();
