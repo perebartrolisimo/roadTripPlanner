@@ -1,0 +1,241 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    color: #333;
+}
+
+.container {
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+header h1 {
+    font-size: 2.4rem;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    letter-spacing: 0.5px;
+}
+
+header p.subtitle {
+    color: rgba(255,255,255,0.85);
+    font-size: 1.05rem;
+    margin-top: 0.4rem;
+}
+
+/* ── Stop cards ─────────────────────────────────────── */
+#stops-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+}
+
+.stop-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 1.5rem 1.75rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stop-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.16);
+}
+
+.stop-card h2 {
+    font-size: 1.2rem;
+    color: #5a3e9b;
+    margin-bottom: 0.6rem;
+    padding-right: 2.5rem;
+}
+
+.stop-card .route-info {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+    color: #555;
+}
+
+.stop-card .route-info a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.15s;
+}
+
+.stop-card .route-info a:hover {
+    color: #764ba2;
+    text-decoration: underline;
+}
+
+.stop-card .distance-badge {
+    background: #ede9fb;
+    color: #5a3e9b;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+}
+
+.stop-card h3 {
+    font-size: 0.88rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #999;
+    margin-bottom: 0.3rem;
+}
+
+.stop-card .hotel-link a {
+    color: #e07b39;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.98rem;
+    transition: color 0.15s;
+}
+
+.stop-card .hotel-link a:hover {
+    color: #b85e25;
+    text-decoration: underline;
+}
+
+.delete-btn {
+    position: absolute;
+    top: 1.1rem;
+    right: 1.1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ccc;
+    font-size: 1.3rem;
+    line-height: 1;
+    padding: 0.2rem 0.4rem;
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.delete-btn:hover {
+    color: #e05252;
+    background: #fde8e8;
+}
+
+/* ── Add-stop form ──────────────────────────────────── */
+.form-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 1.75rem 1.75rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+
+.form-card h2 {
+    font-size: 1.15rem;
+    color: #5a3e9b;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 580px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    header h1 {
+        font-size: 1.7rem;
+    }
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.form-group input {
+    padding: 0.6rem 0.85rem;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #333;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+    width: 100%;
+}
+
+.form-group input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.18);
+}
+
+.form-group input::placeholder {
+    color: #bbb;
+}
+
+.btn-add {
+    margin-top: 1.25rem;
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.4px;
+    transition: opacity 0.2s, transform 0.15s;
+}
+
+.btn-add:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.btn-add:active {
+    transform: translateY(0);
+}
+
+/* ── Empty state ────────────────────────────────────── */
+.empty-state {
+    text-align: center;
+    color: rgba(255,255,255,0.75);
+    font-size: 1rem;
+    padding: 1rem 0;
+}
