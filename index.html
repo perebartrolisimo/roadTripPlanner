@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viatge a Catalunya 2026</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🗺️ Viatge a Catalunya</h1>
+        <p class="subtitle">Juny 2026 · Planificació de ruta</p>
+        <span class="sync-status" id="sync-status"></span>
+    </header>
+
+    <div id="stops-container"></div>
+
+    <div class="form-card" id="form-card">
+        <button type="button" class="form-toggle" id="form-toggle">
+            <span class="form-toggle-text">➕ Afegir nova parada</span>
+            <span class="form-toggle-icon" id="form-toggle-icon">▼</span>
+        </button>
+        <div class="form-body" id="form-body">
+            <form id="add-stop-form" novalidate>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="f-date">Data</label>
+                        <input type="text" id="f-date" placeholder="29 de juny" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="f-route-url">URL de la ruta (Google Maps)</label>
+                        <input type="url" id="f-route-url" placeholder="https://www.google.com/maps/dir/..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-hotel-name">Hotel / Allotjament</label>
+                        <input type="text" id="f-hotel-name" placeholder="Hotel L" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-hotel-url">URL de l'hotel</label>
+                        <input type="url" id="f-hotel-url" placeholder="https://...">
+                    </div>
+                </div>
+                <button type="submit" class="btn-add">Afegir parada</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="form-card" id="settings-card">
+        <button type="button" class="form-toggle" id="settings-toggle">
+            <span class="form-toggle-text">⚙️ Configuració GitHub</span>
+            <span class="form-toggle-icon" id="settings-toggle-icon">▼</span>
+        </button>
+        <div class="form-body" id="settings-body">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="s-owner">Owner</label>
+                    <input type="text" id="s-owner" placeholder="perebartrolisimo">
+                </div>
+                <div class="form-group">
+                    <label for="s-repo">Repository</label>
+                    <input type="text" id="s-repo" placeholder="roadTripPlanner">
+                </div>
+                <div class="form-group">
+                    <label for="s-branch">Branch</label>
+                    <input type="text" id="s-branch" placeholder="main">
+                </div>
+                <div class="form-group">
+                    <label for="s-token">GitHub Token</label>
+                    <input type="password" id="s-token" placeholder="ghp_...">
+                </div>
+            </div>
+            <button type="button" class="btn-save" id="save-settings-btn">💾 Desar configuració</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
