@@ -66,6 +66,25 @@ header p.subtitle {
     font-weight: 400;
 }
 
+.btn-export {
+    margin-top: 0.75rem;
+    padding: 0.45rem 1.1rem;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition), border-color var(--transition);
+}
+
+.btn-export:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.55);
+}
+}
+
 /* ── Stops list ───────────────────────────────────── */
 #stops-container {
     display: flex;

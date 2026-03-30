@@ -1,37 +1,34 @@
-// ── Default stops ─────────────────────────────────────────────────────
-const DEFAULT_STOPS = [
-    {
-        id: 'default-1',
-        date: '29 de juny',
-        origin: 'Uppsala (SE)',
-        destination: 'Lund (SE)',
-        routeUrl: 'https://www.google.com/maps/dir/Kronparksv%C3%A4gen+15,+757+52+Uppsala/Motel+L+Lund,+Telefongatan+14,+224+81+Lund/@57.770648,12.7658852,710140m/data=!3m2!1e3!4b1!4m14!4m13!1m5!1m1!1s0x465fc910f98e112f:0x94bb25986a02327c!2m2!1d17.6946894!2d59.823451!1m5!1m1!1s0x465397562aeaa465:0xa0510b0158027651!2m2!1d13.2294099!2d55.7174207!3e0?entry=ttu&g_ep=EgoyMDI2MDMyNC4wIKXMDSoASAFQAw%3D%3D',
-        distance: '670 km',
-        hotelName: 'Hotel L',
-        hotelUrl: 'https://ligula.se/sv/motel-l/motel-l-lund/'
-    },
-    {
-        id: 'default-2',
-        date: '30 de juny',
-        origin: 'Lund (SE)',
-        destination: 'Oldenburg (DE)',
-        routeUrl: 'https://www.google.com/maps/dir/Kronparksv%C3%A4gen+15,+757+52+Uppsala/Motel+L+Lund,+Telefongatan+14,+224+81+Lund/@57.770648,12.7658852,710140m/data=!3m2!1e3!4b1!4m14!4m13!1m5!1m1!1s0x465fc910f98e112f:0x94bb25986a02327c!2m2!1d17.6946894!2d59.823451!1m5!1m1!1s0x465397562aeaa465:0xa0510b0158027651!2m2!1d13.2294099!2d55.7174207!3e0?entry=ttu&g_ep=EgoyMDI2MDMyNC4wIKXMDSoASAFQAw%3D%3D',
-        distance: '670 km',
-        hotelName: 'Casa Mike',
-        hotelUrl: 'https://www.google.se/maps/place/Klockarev%C3%A4gen+123,+233+41+Svedala/@55.5155568,13.2224448,687m/data=!3m2!1e3!4b1!4m6!3m5!1s0x46539ddc1b228b53:0x4d26d07fac694fba!8m2!3d55.5155538!4d13.2250197!16s%2Fg%2F11crsx3z7j?entry=ttu'
-    }
-];
-
 // ── Storage ──────────────────────────────────────────────────────────
 const STORAGE_KEY = 'roadTripPlanner_stops';
 
-function loadStops() {
+function loadStopsFromStorage() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch (_) {
         return null;
     }
+}
+
+function loadStopsFromFile() {
+    return fetch('stops.json')
+        .then(function (res) {
+            if (!res.ok) throw new Error('Failed to load stops.json');
+            return res.json();
+        });
+}
+
+function exportStops() {
+    const json = JSON.stringify(stops, null, 4);
+    const blob = new Blob([json + '\n'], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'stops.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 function saveStops(list) {
@@ -84,7 +81,7 @@ function buildEmbedUrl(routeUrl) {
 }
 
 // ── State ────────────────────────────────────────────────────────────
-let stops = loadStops() || DEFAULT_STOPS.slice();
+let stops = [];
 let editingId = null;
 
 // ── CRUD ─────────────────────────────────────────────────────────────
@@ -352,4 +349,25 @@ document.getElementById('add-stop-form').addEventListener('submit', function (e)
 });
 
 // ── Init ─────────────────────────────────────────────────────────────
-renderStops();
+function initApp() {
+    const cached = loadStopsFromStorage();
+    if (cached) {
+        stops = cached;
+        renderStops();
+    }
+    loadStopsFromFile().then(function (fileStops) {
+        if (!cached) {
+            stops = fileStops;
+            saveStops(stops);
+            renderStops();
+        }
+    }).catch(function () {
+        if (!cached) {
+            renderStops();
+        }
+    });
+}
+
+document.getElementById('export-btn').addEventListener('click', exportStops);
+
+initApp();
