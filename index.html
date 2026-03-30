@@ -9,47 +9,52 @@
 <body>
 <div class="container">
     <header>
-        <h1>🗺️ Viatge a Catalunya - Juny 2026</h1>
-        <p class="subtitle">Planificació de ruta · Road trip planner</p>
+        <h1>🗺️ Viatge a Catalunya</h1>
+        <p class="subtitle">Juny 2026 · Planificació de ruta</p>
     </header>
 
     <div id="stops-container"></div>
 
-    <div class="form-card">
-        <h2>➕ Afegir nova parada</h2>
-        <form id="add-stop-form" novalidate>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="f-date">Data</label>
-                    <input type="text" id="f-date" placeholder="29 de juny" required>
+    <div class="form-card" id="form-card">
+        <button type="button" class="form-toggle" id="form-toggle">
+            <span class="form-toggle-text">➕ Afegir nova parada</span>
+            <span class="form-toggle-icon" id="form-toggle-icon">▼</span>
+        </button>
+        <div class="form-body" id="form-body">
+            <form id="add-stop-form" novalidate>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="f-date">Data</label>
+                        <input type="text" id="f-date" placeholder="29 de juny" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-distance">Distància (km)</label>
+                        <input type="text" id="f-distance" placeholder="670 km" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-origin">Origen</label>
+                        <input type="text" id="f-origin" placeholder="Uppsala (SE)" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-destination">Destinació</label>
+                        <input type="text" id="f-destination" placeholder="Lund (SE)" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="f-route-url">URL de la ruta (Google Maps)</label>
+                        <input type="url" id="f-route-url" placeholder="https://www.google.com/maps/dir/..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-hotel-name">Hotel / Allotjament</label>
+                        <input type="text" id="f-hotel-name" placeholder="Hotel L" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-hotel-url">URL de l'hotel</label>
+                        <input type="url" id="f-hotel-url" placeholder="https://...">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="f-distance">Distància (km)</label>
-                    <input type="text" id="f-distance" placeholder="670 km" required>
-                </div>
-                <div class="form-group">
-                    <label for="f-origin">Origen</label>
-                    <input type="text" id="f-origin" placeholder="Uppsala (SE)" required>
-                </div>
-                <div class="form-group">
-                    <label for="f-destination">Destinació</label>
-                    <input type="text" id="f-destination" placeholder="Lund (SE)" required>
-                </div>
-                <div class="form-group full-width">
-                    <label for="f-route-url">URL de la ruta (Google Maps)</label>
-                    <input type="url" id="f-route-url" placeholder="https://www.google.com/maps/dir/..." required>
-                </div>
-                <div class="form-group">
-                    <label for="f-hotel-name">Hotel / Allotjament</label>
-                    <input type="text" id="f-hotel-name" placeholder="Hotel L" required>
-                </div>
-                <div class="form-group">
-                    <label for="f-hotel-url">URL de l'hotel</label>
-                    <input type="url" id="f-hotel-url" placeholder="https://...">
-                </div>
-            </div>
-            <button type="submit" class="btn-add">Afegir parada</button>
-        </form>
+                <button type="submit" class="btn-add">Afegir parada</button>
+            </form>
+        </div>
     </div>
 </div>
 
